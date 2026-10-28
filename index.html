@@ -121,7 +121,7 @@ if(!/^[A-Za-z0-9_.]{3,20}$/.test(lg))return msg("Login: 3–20 znaków (litery, 
 if(em.indexOf("@")<1)return msg("Wpisz poprawny e-mail.",1);
 if(pw.length<6)return msg("Hasło musi mieć co najmniej 6 znaków.",1);
 if(!document.getElementById("ok").checked)return msg("Zaakceptuj regulamin i politykę prywatności.",1);
-var a=await sb.rpc("login_available",{l:lg});if(!a.data)return msg("Ten login jest zajęty, wybierz inny.",1);
+var a=await sb.rpc("login_available",{l:lg});if(a.error)return msg("Nie udało się sprawdzić loginu: "+a.error.message,1);if(a.data!==true)return msg("Ten login jest zajęty, wybierz inny.",1);
 var r=await sb.auth.signUp({email:em,password:pw,options:{data:{login:lg.toLowerCase()},emailRedirectTo:location.origin}});
 if(r.error)return msg(/regist/i.test(r.error.message)?"Ten e-mail ma już konto.":"Nie udało się założyć konta.",1);
 S.tab="in";draw();msg("Wysłaliśmy wiadomość z linkiem. Kliknij go, a potem zaloguj się.")}
