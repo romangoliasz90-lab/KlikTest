@@ -67,7 +67,7 @@ var PR=["Matematyka","Język polski","Historia","Przyroda","Biologia","Geografia
 var TH=[["morze","Morze","#1677c8"],["las","Las","#2a7f49"],["zachod","Zachód słońca","#c2410c"],["jasny","Jasny","#f6f7f9"],["ciemny","Ciemny","#12151f"]];
 var st={get:function(k,d){try{var v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set:function(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 var S={view:"home",sel:st.get("sel",{k:"5",p:"Matematyka",d:"",l:0}),q:[],i:0,sc:0,picked:null,busy:false,err:""};
-var SB_URL="WKLEJ_SUPABASE_URL",SB_ANON="WKLEJ_SUPABASE_ANON_KEY";
+var SB_URL="https://ohvceoginratknkelpuy.supabase.co/rest/v1/",SB_ANON="sb_publishable_s5c-R5FENIeJ7iYOosjnfg_f3wbrMsb";
 var sb=window.supabase.createClient(SB_URL,SB_ANON);
 S.user=null;S.ready=false;S.tab="in";S.hist=[];
 sb.auth.onAuthStateChange(function(ev,ses){if(ev==="PASSWORD_RECOVERY"){S.user=ses.user;S.ready=true;S.view="recover";draw()}});
