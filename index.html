@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="pl" data-theme="morze">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>KlikTest</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--ok:#1f9d55;--okbg:#d9f5e3;--bad:#d62828;--badbg:#fde2e2;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+:root[data-theme=morze]{--bg:#e6f3fb;--card:#fff;--ink:#0d2a45;--acc:#1677c8;--on:#fff;--mut:#587289;--line:#c4dcee}
+:root[data-theme=jasny]{--bg:#f6f7f9;--card:#fff;--ink:#1c2330;--acc:#3b5bdb;--on:#fff;--mut:#667083;--line:#dde1e8}
+:root[data-theme=ciemny]{--bg:#12151f;--card:#1c2130;--ink:#eef1f8;--acc:#6ea8ff;--on:#0b1220;--mut:#a0aabd;--line:#2d3550;--ok:#4ade80;--okbg:#123d27;--bad:#ff7b7b;--badbg:#4a1a1c;color-scheme:dark}
+:root[data-theme=las]{--bg:#e9f3e8;--card:#fff;--ink:#16301c;--acc:#2a7f49;--on:#fff;--mut:#527058;--line:#c5dec6}
+:root[data-theme=zachod]{--bg:#fff0e3;--card:#fff;--ink:#3a1f33;--acc:#c2410c;--on:#fff;--mut:#7e5a6c;--line:#f1d3bd}
+*{box-sizing:border-box}
+html,body{margin:0}
+.logo{display:flex;align-items:center;gap:8px;letter-spacing:-.5px}
+.logo svg{width:40px;height:40px;flex:none}
+.logo b{color:var(--acc)}
+body{background:var(--bg);color:var(--ink);font:500 17px/1.45 Nunito,system-ui,sans-serif;min-height:100vh}
+main{max-width:640px;margin:0 auto;padding:12px 16px 40px}
+header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0 12px;flex-wrap:wrap}
+h1{font-size:24px;font-weight:800;margin:0}
+h2{font-size:20px;font-weight:800;margin:0 0 12px}
+nav{display:flex;gap:6px}
+nav button,.seg button{font:inherit;font-weight:700;border:2px solid var(--line);background:var(--card);color:var(--ink);border-radius:12px;padding:8px 12px;cursor:pointer}
+nav button[aria-current=true],.seg button[aria-pressed=true]{background:var(--acc);border-color:var(--acc);color:var(--on)}
+.card{background:var(--card);border:2px solid var(--line);border-radius:18px;padding:18px;margin-bottom:14px}
+label{display:block;font-weight:700;margin:12px 0 6px}
+select,input{width:100%;font:inherit;padding:11px 12px;border-radius:12px;border:2px solid var(--line);background:var(--card);color:var(--ink)}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.big{width:100%;margin-top:18px;font:inherit;font-weight:800;font-size:18px;border:0;border-radius:14px;padding:14px;background:var(--acc);color:var(--on);cursor:pointer}
+.big.alt{background:var(--card);color:var(--ink);border:2px solid var(--line)}
+.bar{height:10px;background:var(--line);border-radius:6px;overflow:hidden;margin:6px 0 16px}
+.bar i{display:block;height:100%;background:var(--acc);transition:width .3s}
+.q{font-size:20px;font-weight:800;margin:0 0 14px}
+.opt{display:flex;align-items:center;gap:10px;width:100%;text-align:left;font:inherit;font-weight:700;padding:12px;margin-bottom:10px;border-radius:14px;border:2px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+.opt .l{flex:none;width:30px;height:30px;border-radius:50%;background:var(--line);display:grid;place-items:center;font-weight:800}
+.opt .t{flex:1}
+.opt.ok{background:var(--okbg);border-color:var(--ok)}
+.opt.bad{background:var(--badbg);border-color:var(--bad)}
+.opt svg{flex:none;width:30px;height:30px}
+.opt.ok svg{color:var(--ok)}.opt.bad svg{color:var(--bad)}
+.opt:disabled{cursor:default}
+.exp{border-left:6px solid var(--acc);background:var(--bg);border-radius:10px;padding:10px 12px;margin-top:6px}
+.score{font-size:56px;font-weight:800;text-align:center;margin:4px 0}
+.mut{color:var(--mut)}
+.row{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.themes{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.th{display:flex;align-items:center;gap:10px;font:inherit;font-weight:700;padding:10px;border-radius:14px;border:2px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+.th[aria-pressed=true]{border-color:var(--acc);box-shadow:0 0 0 2px var(--acc)}
+.sw{width:26px;height:26px;border-radius:50%;border:2px solid var(--line)}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+</style>
+</head>
+<body>
+<main>
+<header><h1 class="logo"><svg viewBox="0 0 40 40" role="img" aria-label="Logo KlikTest"><rect width="40" height="40" rx="11" style="fill:var(--acc)"/><path d="M9 22l7 7L28 15" fill="none" stroke="#fff" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M31 6V3M34.5 8.5l2.2-2.2M36 13h2.5" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span>Klik<b>Test</b></span></h1><nav id="nav"></nav></header>
+<div id="app"></div>
+</main>
+<script>
+var LV=["Na trójkę","Na piątkę","Na szóstkę"];
+var LD=["podstawy, proste przypomnienie faktów","rozumienie i łączenie faktów","zadania wymagające myślenia, w stylu egzaminu ósmoklasisty"];
+var PR=["Matematyka","Język polski","Historia","Przyroda","Biologia","Geografia","Fizyka","Chemia","Język angielski"];
+var TH=[["morze","Morze","#1677c8"],["las","Las","#2a7f49"],["zachod","Zachód słońca","#c2410c"],["jasny","Jasny","#f6f7f9"],["ciemny","Ciemny","#12151f"]];
+var st={get:function(k,d){try{var v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set:function(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+var S={view:"home",sel:st.get("sel",{k:"5",p:"Matematyka",d:"",l:0}),q:[],i:0,sc:0,picked:null,busy:false,err:""};
+var SB_URL="WKLEJ_SUPABASE_URL",SB_ANON="WKLEJ_SUPABASE_ANON_KEY";
+var sb=window.supabase.createClient(SB_URL,SB_ANON);
+S.user=null;S.ready=false;S.tab="in";S.hist=[];
+sb.auth.onAuthStateChange(function(ev,ses){if(ev==="PASSWORD_RECOVERY"){S.user=ses.user;S.ready=true;S.view="recover";draw()}});
+sb.auth.getSession().then(async function(r){S.user=r.data.session?r.data.session.user:null;if(S.user)await loadHist();S.ready=true;if(S.view!=="recover")S.view=S.user?"home":"auth";draw()});
+setTheme(st.get("theme","morze"));
+function setTheme(t){document.documentElement.setAttribute("data-theme",t);st.set("theme",t)}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function face(ok){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" role="img" aria-label="'+(ok?"poprawna odpowiedź":"błędna odpowiedź")+'"><circle cx="12" cy="12" r="10"/><circle cx="8.5" cy="9.5" r=".8" fill="currentColor"/><circle cx="15.5" cy="9.5" r=".8" fill="currentColor"/><path d="'+(ok?"M7.5 14.5q4.5 4.5 9 0":"M7.5 17q4.5-4.5 9 0")+'"/></svg>'}
+function key(s){return s.k+"|"+s.p+"|"+s.d.toLowerCase().trim()+"|"+s.l}
+function shuffle(a){for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t}return a}
+function nav(){if(!S.user){document.getElementById("nav").innerHTML="";return}var n=[["home","Testy"],["prog","Postępy"],["set","Ustawienia"]];var v=S.view==="test"||S.view==="res"?"home":S.view;
+document.getElementById("nav").innerHTML=n.map(function(x){return '<button aria-current="'+(v===x[0])+'" onclick="go(\''+x[0]+'\')">'+x[1]+'</button>'}).join("")}
+function go(v){S.view=v;S.err="";draw()}
+function draw(){if(!S.ready){document.getElementById("app").innerHTML='<div class="card">Ładowanie…</div>';return}if(!S.user&&S.view!=="remind")S.view="auth";nav();var f={home:home,test:test,res:res,prog:prog,set:setv,auth:auth,remind:remind,recover:recover}[S.view];document.getElementById("app").innerHTML=f()}
+function home(){var s=S.sel;
+return '<div class="card"><h2>Wybierz test</h2><label for="k">Klasa</label><select id="k" onchange="S.sel.k=this.value">'+[4,5,6,7,8].map(function(k){return '<option'+(String(k)===s.k?" selected":"")+'>'+k+'</option>'}).join("")+'</select>'
++'<label for="p">Przedmiot</label><select id="p" onchange="S.sel.p=this.value">'+PR.map(function(p){return '<option'+(p===s.p?" selected":"")+'>'+p+'</option>'}).join("")+'</select>'
++'<label for="d">Dział lub lektura</label><input id="d" maxlength="80" placeholder="np. Ułamki zwykłe albo „Akademia pana Kleksa”" value="'+esc(s.d)+'" oninput="S.sel.d=this.value">'
++'<label>Poziom</label><div class="seg">'+LV.map(function(l,i){return '<button aria-pressed="'+(s.l===i)+'" onclick="S.sel.l='+i+';draw()">'+l+'</button>'}).join("")+'</div>'
++'<p class="mut" style="margin:8px 0 0">15 pytań, jedna poprawna odpowiedź z czterech.</p>'
++(S.err?'<p role="alert" style="color:var(--bad);font-weight:700">'+esc(S.err)+'</p>':'')
++'<button class="big" onclick="start()"'+(S.busy?" disabled":"")+'>'+(S.busy?"Układam pytania…":"Zaczynamy")+'</button></div>'}
+function v(id){var e=document.getElementById(id);return e?e.value:""}
+function msg(m,bad){var e=document.getElementById("msg");if(e){e.textContent=m;e.style.color=bad?"var(--bad)":"var(--ok)"}}
+async function api(path,body){var s=(await sb.auth.getSession()).data.session;
+var r=await fetch(path,{method:"POST",headers:{"content-type":"application/json",authorization:"Bearer "+(s?s.access_token:"")},body:JSON.stringify(body)});
+var j=await r.json().catch(function(){return{}});if(!r.ok)throw new Error(j.error||"blad");return j}
+async function loadHist(){var r=await sb.from("results").select("*").order("created_at");
+S.hist=(r.data||[]).map(function(x){return{k:x.k,p:x.p,d:x.d,l:x.l,sc:x.score,t:x.created_at}})}
+async function start(){var s=S.sel;st.set("sel",s);
+if(!s.d.trim()){S.err="Wpisz dział albo lektury, z których chcesz test.";draw();return}
+S.busy=true;S.err="";draw();
+try{var j=await api("/api/test",{k:s.k,p:s.p,d:s.d,l:s.l});
+if(!j.questions||j.questions.length<15)throw new Error("gen");
+S.q=j.questions;S.total=15;S.i=0;S.sc=0;S.picked=null;S.wait=false;S.view="test"}
+catch(e){S.err=e.message==="limit"?"Na dziś to wszystkie nowe pytania. Wróć jutro!":"Nie udało się ułożyć testu. Spróbuj jeszcze raz."}
+S.busy=false;draw()}
+function report(){var q=S.q[S.i];S.reported=q.id;draw();api("/api/test",{action:"report",qid:q.id}).catch(function(){})}
+function reportBtn(q){return S.reported===q.id?'<p class="mut">Dziękujemy za zgłoszenie.</p>':'<button class="th" style="margin-top:10px" onclick="report()">Zgłoś błąd w pytaniu</button>'}
+function tab(t){S.tab=t;draw()}
+function auth(){var up=S.tab==="up";
+return '<div class="card"><div class="seg" style="grid-template-columns:1fr 1fr"><button aria-pressed="'+!up+'" onclick="tab(\'in\')">Zaloguj się</button><button aria-pressed="'+up+'" onclick="tab(\'up\')">Załóż konto</button></div>'
++(up?'<label for="em">E-mail (rodzica, jeśli masz mniej niż 16 lat)</label><input id="em" type="email" autocomplete="email">':'')
++'<label for="lg">Login</label><input id="lg" autocomplete="username" maxlength="20" placeholder="nie używaj imienia i nazwiska">'
++'<label for="pw">Hasło</label><input id="pw" type="password" autocomplete="'+(up?"new":"current")+'-password">'
++(up?'<label class="mut" style="font-weight:500"><input type="checkbox" id="ok" style="width:auto"> Akceptuję <a href="/regulamin.html">regulamin</a> i <a href="/prywatnosc.html">politykę prywatności</a></label>':'')
++'<p id="msg" role="alert" style="font-weight:700"></p><button class="big" onclick="'+(up?"signup()":"signin()")+'">'+(up?"Załóż konto":"Zaloguj się")+'</button>'
++'<button class="big alt" onclick="S.view=\'remind\';draw()">Przypomnij login/hasło</button></div>'}
+async function signup(){var lg=v("lg").trim(),em=v("em").trim(),pw=v("pw");
+if(!/^[A-Za-z0-9_.]{3,20}$/.test(lg))return msg("Login: 3–20 znaków (litery, cyfry, _ i .).",1);
+if(em.indexOf("@")<1)return msg("Wpisz poprawny e-mail.",1);
+if(pw.length<6)return msg("Hasło musi mieć co najmniej 6 znaków.",1);
+if(!document.getElementById("ok").checked)return msg("Zaakceptuj regulamin i politykę prywatności.",1);
+var a=await sb.rpc("login_available",{l:lg});if(!a.data)return msg("Ten login jest zajęty, wybierz inny.",1);
+var r=await sb.auth.signUp({email:em,password:pw,options:{data:{login:lg.toLowerCase()},emailRedirectTo:location.origin}});
+if(r.error)return msg(/regist/i.test(r.error.message)?"Ten e-mail ma już konto.":"Nie udało się założyć konta.",1);
+S.tab="in";draw();msg("Wysłaliśmy wiadomość z linkiem. Kliknij go, a potem zaloguj się.")}
+async function signin(){try{var j=await api("/api/auth",{action:"login",login:v("lg"),password:v("pw")});
+await sb.auth.setSession({access_token:j.session.access_token,refresh_token:j.session.refresh_token})}
+catch(e){return msg("Zły login lub hasło.",1)}
+S.user=(await sb.auth.getSession()).data.session.user;await loadHist();S.view="home";draw()}
+function remind(){return '<div class="card"><h2>Przypomnij login/hasło</h2><label for="em">Twój e-mail</label><input id="em" type="email" autocomplete="email"><p id="msg" role="alert" style="font-weight:700"></p><button class="big" onclick="sendRemind()">Wyślij</button><button class="big alt" onclick="S.view=\'auth\';draw()">Wróć</button></div>'}
+async function sendRemind(){try{await api("/api/auth",{action:"remind",email:v("em")});msg("Jeśli konto istnieje, wysłaliśmy wiadomość.")}catch(e){msg("Spróbuj ponownie za chwilę.",1)}}
+function recover(){return '<div class="card"><h2>Nowe hasło</h2><label for="pw">Nowe hasło</label><input id="pw" type="password" autocomplete="new-password"><p id="msg" role="alert" style="font-weight:700"></p><button class="big" onclick="newPass()">Zapisz hasło</button></div>'}
+async function newPass(){var pw=v("pw");if(pw.length<6)return msg("Hasło musi mieć co najmniej 6 znaków.",1);
+var r=await sb.auth.updateUser({password:pw});if(r.error)return msg("Nie udało się zmienić hasła.",1);await loadHist();S.view="home";draw()}
+async function logout(){await sb.auth.signOut();S.user=null;S.hist=[];S.view="auth";draw()}
+function test(){var q=S.q[S.i],a=S.picked!==null,L="ABCD";
+return '<div class="card"><div class="row mut"><span>Pytanie '+(S.i+1)+' z '+S.total+'</span><span>Wynik: '+S.sc+'</span></div><div class="bar"><i style="width:'+(S.i/S.total*100)+'%"></i></div><p class="q">'+esc(q.q)+'</p>'
++q.o.map(function(o,i){var c="";var ic="";if(a){if(i===q.c){c=" ok";ic=face(true)}else if(i===S.picked){c=" bad";ic=face(false)}}
+return '<button class="opt'+c+'"'+(a?" disabled":"")+' onclick="pick('+i+')"><span class="l">'+L[i]+'</span><span class="t">'+esc(o)+'</span>'+ic+'</button>'}).join("")
++(a?'<div class="exp"><b>'+(S.picked===q.c?"Dobrze!":"Poprawna odpowiedź: "+L[q.c]+".")+'</b> '+esc(q.e)+'</div>'+reportBtn(q)+(S.wait&&S.failed?'<p role="alert" style="color:var(--bad);font-weight:700">Nie udało się ułożyć kolejnych pytań.</p><button class="big" onclick="retry()">Spróbuj ponownie</button>':'<button class="big" onclick="next()"'+(S.wait?" disabled":"")+'>'+(S.wait?"Układam kolejne pytanie…":(S.i+1<S.total?"Następne pytanie":"Zobacz wynik"))+'</button>'):'')+'</div>'}
+function pick(i){if(S.picked!==null)return;S.picked=i;if(i===S.q[S.i].c)S.sc++;draw()}
+function next(){if(S.i+1<S.total&&S.i+1>=S.q.length){S.wait=true;draw();return}if(S.i+1<S.total){S.i++;S.picked=null;draw()}else{S.hist.push({k:S.sel.k,p:S.sel.p,d:S.sel.d.trim(),l:S.sel.l,sc:S.sc});sb.from("results").insert({k:S.sel.k,p:S.sel.p,d:S.sel.d.trim(),l:S.sel.l,score:S.sc}).then(function(){});S.view="res";draw()}}
+function res(){var s=S.sc,t=S.q.length,l=S.sel.l;
+var m=s===t?"Bezbłędnie!":s>=t*0.8?"Prawie idealnie!":s>=t*0.5?"Dobra robota, idziemy dalej!":"Jeszcze trochę nauki i będzie lepiej!";
+var up=s===t&&l<2;
+return '<div class="card"><h2>Koniec testu</h2><div class="score">'+s+'/'+t+'</div><p style="text-align:center;font-weight:700">'+m+'</p>'
++(s===t&&l===2?'<p style="text-align:center">Ten dział masz opanowany na szóstkę. Wybierz kolejny!</p>':'')
++(up?'<button class="big" onclick="S.sel.l='+(l+1)+';start()">Spróbuj: '+LV[l+1]+'</button>':'')
++'<button class="big'+(up?" alt":"")+'" onclick="start()">Nowy test z tego działu</button><button class="big alt" onclick="go(\'home\')">Inny dział</button></div>'}
+function prog(){var h=S.hist||[];if(!h.length)return '<div class="card"><h2>Moje postępy</h2><p>Tu zobaczysz, ile testów zrobiłeś(-aś) i z jakim wynikiem. Rozwiąż pierwszy test!</p></div>';
+var g={};h.forEach(function(x){var k=x.p+" · "+x.d+" (kl. "+x.k+")";(g[k]=g[k]||[]).push(x)});
+return '<div class="card"><h2>Moje postępy</h2>'+Object.keys(g).map(function(k){var a=g[k],b=Math.max.apply(null,a.map(function(x){return x.sc})),avg=a.reduce(function(s,x){return s+x.sc},0)/a.length,last=a[a.length-1];
+var lv=LV.map(function(n,i){var c=a.filter(function(x){return x.l===i}).length;return c?n+": "+c:""}).filter(Boolean).join(", ");
+return '<div style="border-top:2px solid var(--line);padding:12px 0"><b>'+esc(k)+'</b><div class="mut">Testów: '+a.length+' ('+lv+')</div><div>Najlepszy wynik: <b>'+b+'/15</b> · ostatni: '+last.sc+'/15 · średnia: '+avg.toFixed(1).replace(".",",")+'/15</div></div>'}).join("")+'</div>'}
+function setv(){var c=document.documentElement.getAttribute("data-theme");
+return '<div class="card"><h2>Motyw aplikacji</h2><div class="themes">'+TH.map(function(t){return '<button class="th" aria-pressed="'+(c===t[0])+'" onclick="setTheme(\''+t[0]+'\');draw()"><span class="sw" style="background:'+t[2]+'"></span>'+t[1]+'</button>'}).join("")+'</div></div><div class="card"><p>Zalogowano jako <b>'+esc((S.user&&S.user.user_metadata&&S.user.user_metadata.login)||"")+'</b></p><button class="big alt" onclick="logout()">Wyloguj</button></div>'}
+draw();
+</script>
+</body>
+</html>

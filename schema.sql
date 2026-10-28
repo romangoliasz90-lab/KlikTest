@@ -1,0 +1,23 @@
+-- KlikTest: wklej całość w Supabase → SQL Editor → Run
+create table profiles(id uuid primary key references auth.users on delete cascade, login text not null unique);
+alter table profiles enable row level security;
+create policy "own profile" on profiles for select using (auth.uid()=id);
+create table questions(id uuid primary key default gen_random_uuid(), k text, p text, d text, l int, q text, o jsonb, c int, e text, reports int default 0, created_at timestamptz default now(), unique(k,p,d,l,q));
+alter table questions enable row level security;
+create table seen(user_id uuid references auth.users on delete cascade, question_id uuid references questions on delete cascade, primary key(user_id,question_id));
+alter table seen enable row level security;
+create table results(id bigserial primary key, user_id uuid not null default auth.uid() references auth.users on delete cascade, k text, p text, d text, l int, score int, created_at timestamptz default now());
+alter table results enable row level security;
+create policy "own results read" on results for select using (auth.uid()=user_id);
+create policy "own results insert" on results for insert with check (auth.uid()=user_id and score between 0 and 15);
+create table usage(user_id uuid, day date, n int default 0, primary key(user_id,day));
+alter table usage enable row level security;
+create table reports(id bigserial primary key, question_id uuid references questions on delete cascade, user_id uuid, unique(question_id,user_id));
+alter table reports enable row level security;
+create function login_available(l text) returns boolean language sql security definer as $$ select not exists(select 1 from profiles where login=lower(l)) $$;
+grant execute on function login_available to anon, authenticated;
+create function handle_new_user() returns trigger language plpgsql security definer as $$ begin insert into profiles(id,login) values(new.id, lower(new.raw_user_meta_data->>'login')); return new; end $$;
+create trigger on_auth_user_created after insert on auth.users for each row execute function handle_new_user();
+create function login_by_email(e text) returns text language sql security definer as $$ select p.login from profiles p join auth.users u on u.id=p.id where lower(u.email)=lower(e) $$;
+revoke execute on function login_by_email from public, anon, authenticated;
+grant execute on function login_by_email to service_role;
