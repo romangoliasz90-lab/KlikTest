@@ -3,6 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#e6f3fb">
+<link rel="icon" href="/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="KlikTest">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>KlikTest</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800&display=swap" rel="stylesheet">
@@ -79,7 +87,7 @@ S.user=null;S.ready=false;S.tab="in";S.hist=[];
 sb.auth.onAuthStateChange(function(ev,ses){if(ev==="PASSWORD_RECOVERY"){S.user=ses.user;S.ready=true;S.view="recover";draw()}});
 sb.auth.getSession().then(async function(r){S.user=r.data.session?r.data.session.user:null;if(S.user)await loadHist();S.ready=true;if(S.view!=="recover")S.view=S.user?"home":"auth";draw()});
 setTheme(st.get("theme","morze"));
-function setTheme(t){document.documentElement.setAttribute("data-theme",t);st.set("theme",t)}
+function setTheme(t){document.documentElement.setAttribute("data-theme",t);st.set("theme",t);var m=document.querySelector('meta[name=theme-color]');if(m)m.setAttribute("content",{morze:"#e6f3fb",las:"#e9f3e8",zachod:"#fff0e3",jasny:"#f6f7f9",ciemny:"#12151f"}[t]||"#e6f3fb")}
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 function face(ok){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" role="img" aria-label="'+(ok?"poprawna odpowiedź":"błędna odpowiedź")+'"><circle cx="12" cy="12" r="10"/><circle cx="8.5" cy="9.5" r=".8" fill="currentColor"/><circle cx="15.5" cy="9.5" r=".8" fill="currentColor"/><path d="'+(ok?"M7.5 14.5q4.5 4.5 9 0":"M7.5 17q4.5-4.5 9 0")+'"/></svg>'}
 function key(s){return s.k+"|"+s.p+"|"+s.d.toLowerCase().trim()+"|"+s.l}
@@ -106,11 +114,22 @@ S.hist=(r.data||[]).map(function(x){return{k:x.k,p:x.p,d:x.d,l:x.l,sc:x.score,t:
 async function start(){var s=S.sel;st.set("sel",s);
 if(!s.d.trim()){S.err="Wpisz dział albo lektury, z których chcesz test.";draw();return}
 S.busy=true;S.err="";draw();
-try{var j=await api("/api/test",{k:s.k,p:s.p,d:s.d,l:s.l});
-if(!j.questions||j.questions.length<15)throw new Error("gen");
-S.q=j.questions;S.total=15;S.i=0;S.sc=0;S.picked=null;S.wait=false;S.view="test"}
+try{var j=await api("/api/test",{k:s.k,p:s.p,d:s.d,l:s.l,n:5});
+if(!j.questions||j.questions.length<5)throw new Error("gen");
+var tok=S.tok=Date.now();
+S.q=j.questions;S.total=15;S.i=0;S.sc=0;S.picked=null;S.wait=false;S.failed=false;S.view="test";
+S.ctx={k:s.k,p:s.p,d:s.d,l:s.l,tid:j.tid,tok:tok};S.busy=false;draw();fill();return}
 catch(e){S.err=e.message==="temat"?"Ten temat nie pasuje do wybranego przedmiotu lub klasy. Wpisz inny temat szkolny.":(e.message==="limit"?"Na dziś to wszystkie nowe pytania. Wróć jutro!":"Nie udało się ułożyć testu. Spróbuj jeszcze raz.")+(e.detail?" Szczegóły: "+e.detail:"")}
 S.busy=false;draw()}
+async function fill(){var c=S.ctx,tries=0;
+while(S.tok===c.tok&&S.q.length<S.total&&tries<4){
+try{var j=await api("/api/test",{k:c.k,p:c.p,d:c.d,l:c.l,tid:c.tid,n:S.total-S.q.length});
+if(S.tok!==c.tok)return;
+(j.questions||[]).forEach(function(x){if(S.q.length<S.total&&!S.q.some(function(y){return y.id===x.id}))S.q.push(x)});
+if(S.wait&&S.i+1<S.q.length){S.wait=false;next()}}
+catch(e){tries++;if(e.message==="limit")break}}
+if(S.tok===c.tok&&S.q.length<S.total){S.failed=true;if(S.wait)draw()}}
+function retry(){S.failed=false;draw();fill()}
 function report(){var q=S.q[S.i];S.reported=q.id;draw();api("/api/test",{action:"report",qid:q.id}).catch(function(){})}
 function reportBtn(q){return S.reported===q.id?'<p class="mut">Dziękujemy za zgłoszenie.</p>':'<button class="th" style="margin-top:10px" onclick="report()">Zgłoś błąd w pytaniu</button>'}
 function nz(s){return String(s).toLowerCase().replace(/ł/g,"l").normalize("NFD").replace(/[\u0300-\u036f]/g,"")}
@@ -172,6 +191,7 @@ return '<div style="border-top:2px solid var(--line);padding:12px 0"><b>'+esc(k)
 function setv(){var c=document.documentElement.getAttribute("data-theme");
 return '<div class="card"><h2>Motyw aplikacji</h2><div class="themes">'+TH.map(function(t){return '<button class="th" aria-pressed="'+(c===t[0])+'" onclick="setTheme(\''+t[0]+'\');draw()"><span class="sw" style="background:'+t[2]+'"></span>'+t[1]+'</button>'}).join("")+'</div></div><div class="card"><p>Zalogowano jako <b>'+esc((S.user&&S.user.user_metadata&&S.user.user_metadata.login)||"")+'</b></p><button class="big alt" onclick="logout()">Wyloguj</button></div>'}
 draw();
+if("serviceWorker" in navigator)window.addEventListener("load",function(){navigator.serviceWorker.register("/sw.js").catch(function(){})});
 </script>
 </body>
 </html>
