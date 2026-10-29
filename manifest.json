@@ -1,0 +1,26 @@
+{
+ "name": "KlikTest",
+ "short_name": "KlikTest",
+ "description": "Testy z podstawówki: wpisz temat i sprawdź swoją wiedzę",
+ "start_url": "/",
+ "scope": "/",
+ "display": "standalone",
+ "orientation": "portrait",
+ "lang": "pl",
+ "background_color": "#e6f3fb",
+ "theme_color": "#1677c8",
+ "icons": [
+  {
+   "src": "/icon-192.png",
+   "sizes": "192x192",
+   "type": "image/png",
+   "purpose": "any maskable"
+  },
+  {
+   "src": "/icon-512.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "any maskable"
+  }
+ ]
+}
