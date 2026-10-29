@@ -47,7 +47,7 @@ export default async function handler(req,res){
       if((u?.n||0)>=DAILY) return res.status(429).json({error:'limit'});
       await sb.from('usage').upsert({user_id:user.id,day,n:(u?.n||0)+1});
       const jobs=Math.ceil((15-pool.length+3)/5), avoid=all.slice(-40).map(x=>x.q);
-      const out=await Promise.all(Array.from({length:jobs},(_,i)=>gen(s,5,avoid,i+1).catch(()=>[])));
+      const out=await Promise.all(Array.from({length:jobs},(_,i)=>gen(s,5,avoid,i+1).catch(e=>{console.error('gen error:',e.message);return []})
       const rows=out.flat().map(x=>({...s,q:x.q,o:x.o,c:x.c,e:x.e}));
       if(rows.length) await sb.from('questions').upsert(rows,{onConflict:'k,p,d,l,q',ignoreDuplicates:true});
       ({all,pool}=await unseen(user.id,s));
