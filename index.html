@@ -94,7 +94,7 @@ function v(id){var e=document.getElementById(id);return e?e.value:""}
 function msg(m,bad){var e=document.getElementById("msg");if(e){e.textContent=m;e.style.color=bad?"var(--bad)":"var(--ok)"}}
 async function api(path,body){var s=(await sb.auth.getSession()).data.session;
 var r=await fetch(path,{method:"POST",headers:{"content-type":"application/json",authorization:"Bearer "+(s?s.access_token:"")},body:JSON.stringify(body)});
-var j=await r.json().catch(function(){return{}});if(!r.ok)throw new Error(j.error||"blad");return j}
+var j=await r.json().catch(function(){return{}});if(!r.ok){var er=new Error(j.error||"blad");er.detail=j.detail;throw er}return j}
 async function loadHist(){var r=await sb.from("results").select("*").order("created_at");
 S.hist=(r.data||[]).map(function(x){return{k:x.k,p:x.p,d:x.d,l:x.l,sc:x.score,t:x.created_at}})}
 async function start(){var s=S.sel;st.set("sel",s);
@@ -103,7 +103,7 @@ S.busy=true;S.err="";draw();
 try{var j=await api("/api/test",{k:s.k,p:s.p,d:s.d,l:s.l});
 if(!j.questions||j.questions.length<15)throw new Error("gen");
 S.q=j.questions;S.total=15;S.i=0;S.sc=0;S.picked=null;S.wait=false;S.view="test"}
-catch(e){S.err=e.message==="limit"?"Na dziś to wszystkie nowe pytania. Wróć jutro!":"Nie udało się ułożyć testu. Spróbuj jeszcze raz."}
+catch(e){S.err=(e.message==="limit"?"Na dziś to wszystkie nowe pytania. Wróć jutro!":"Nie udało się ułożyć testu. Spróbuj jeszcze raz.")+(e.detail?" Szczegóły: "+e.detail:"")}
 S.busy=false;draw()}
 function report(){var q=S.q[S.i];S.reported=q.id;draw();api("/api/test",{action:"report",qid:q.id}).catch(function(){})}
 function reportBtn(q){return S.reported===q.id?'<p class="mut">Dziękujemy za zgłoszenie.</p>':'<button class="th" style="margin-top:10px" onclick="report()">Zgłoś błąd w pytaniu</button>'}
@@ -123,11 +123,11 @@ if(pw.length<6)return msg("Hasło musi mieć co najmniej 6 znaków.",1);
 if(!document.getElementById("ok").checked)return msg("Zaakceptuj regulamin i politykę prywatności.",1);
 var a=await sb.rpc("login_available",{l:lg});if(a.error)return msg("Nie udało się sprawdzić loginu: "+a.error.message,1);if(a.data!==true)return msg("Ten login jest zajęty, wybierz inny.",1);
 var r=await sb.auth.signUp({email:em,password:pw,options:{data:{login:lg.toLowerCase()},emailRedirectTo:location.origin}});
-if(r.error)return msg(/regist/i.test(r.error.message)?"Ten e-mail ma już konto.":"Nie udało się założyć konta.",1);
+if(r.error)return msg(/regist/i.test(r.error.message)?"Ten e-mail ma już konto.":"Nie udało się założyć konta: "+r.error.message,1);
 S.tab="in";draw();msg("Wysłaliśmy wiadomość z linkiem. Kliknij go, a potem zaloguj się.")}
 async function signin(){try{var j=await api("/api/auth",{action:"login",login:v("lg"),password:v("pw")});
 await sb.auth.setSession({access_token:j.session.access_token,refresh_token:j.session.refresh_token})}
-catch(e){return msg("Zły login lub hasło.",1)}
+catch(e){return msg(e.message==="bad"?"Zły login lub hasło (albo konto jest niepotwierdzone).":"Błąd serwera logowania. Sprawdź zmienne w Vercel.",1)}
 S.user=(await sb.auth.getSession()).data.session.user;await loadHist();S.view="home";draw()}
 function remind(){return '<div class="card"><h2>Przypomnij login/hasło</h2><label for="em">Twój e-mail</label><input id="em" type="email" autocomplete="email"><p id="msg" role="alert" style="font-weight:700"></p><button class="big" onclick="sendRemind()">Wyślij</button><button class="big alt" onclick="S.view=\'auth\';draw()">Wróć</button></div>'}
 async function sendRemind(){try{await api("/api/auth",{action:"remind",email:v("em")});msg("Jeśli konto istnieje, wysłaliśmy wiadomość.")}catch(e){msg("Spróbuj ponownie za chwilę.",1)}}
