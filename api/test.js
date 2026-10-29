@@ -5,6 +5,8 @@ const LD=['podstawy, proste przypomnienie faktów','rozumienie i łączenie fakt
 const SUBJ=['Matematyka','Język polski','Historia','Przyroda','Biologia','Geografia','Fizyka','Chemia','Język angielski','Informatyka','Wiedza o społeczeństwie'];
 const DAILY=Number(process.env.DAILY_LIMIT||30);
 const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+const toks=q=>new Set(norm(q).split(' ').filter(w=>w.length>2));
+const sim=(a,b)=>{let i=0;for(const w of a)if(b.has(w))i++;return i/((a.size+b.size-i)||1)};
 const norm=s=>String(s||'').toLowerCase().replace(/ł/g,'l').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
 
 async function ask(prompt,max=4000){
@@ -89,23 +91,28 @@ export default async function handler(req,res){
     }
     const s={k,p,d:String(b.d||'').replace(/[\u0000-\u001f]/g,' ').trim().slice(0,80),l:Number(b.l)};
     if(![0,1,2].includes(s.l)||!s.d) return res.status(400).json({error:'dane'});
-    const topic=await resolveTopic(user.id,s);
+    const want=Math.min(15,Math.max(1,Number(b.n)||15));
+    let topic=null;
+    if(b.tid){const {data:t}=await sb.from('topics').select('id,name').match({id:String(b.tid),k:s.k,p:s.p}).maybeSingle();topic=t}
+    if(!topic) topic=await resolveTopic(user.id,s);
     if(!topic) return res.status(422).json({error:'temat'});
-    got=await reserve(user.id,topic.id,s.l,15);
+    got=await reserve(user.id,topic.id,s.l,want);
     let detail='';
-    for(let round=0;got.length<15&&round<4;round++){
+    for(let round=0;got.length<want&&round<4;round++){
       if(!(await bump(user.id))){await release(user.id,got);return res.status(429).json({error:'limit'})}
-      const need=15-got.length;
-      const {data:recent}=await sb.from('questions').select('q').eq('topic_id',topic.id).eq('l',s.l).order('created_at',{ascending:false}).limit(60);
-      const avoid=(recent||[]).map(x=>x.q);
-      const jobs=Math.ceil((need+3)/5);
-      const out=await Promise.all(Array.from({length:jobs},(_,i)=>gen(s,topic,5,avoid,i+1).catch(e=>{console.error('gen error:',e.message);detail=detail||e.message;return []})));
-      const rows=out.flat().map(x=>({topic_id:topic.id,k:s.k,p:s.p,d:topic.name,l:s.l,q:x.q,o:x.o,c:x.c,e:x.e,norm:norm(x.q)}));
+      const need=want-got.length;
+      const {data:recent}=await sb.from('questions').select('q').eq('topic_id',topic.id).eq('l',s.l).order('created_at',{ascending:false}).limit(200);
+      const avoid=(recent||[]).slice(0,60).map(x=>x.q);
+      const known=(recent||[]).map(x=>toks(x.q));
+      const jobs=Math.ceil((need+2)/3);
+      const out=await Promise.all(Array.from({length:jobs},(_,i)=>gen(s,topic,3,avoid,i+1).catch(e=>{console.error('gen error:',e.message);detail=detail||e.message;return []})));
+      const rows=[];
+      for(const x of out.flat()){const t=toks(x.q);if(known.some(k=>sim(k,t)>=0.5))continue;known.push(t);rows.push({topic_id:topic.id,k:s.k,p:s.p,d:topic.name,l:s.l,q:x.q,o:x.o,c:x.c,e:x.e,norm:norm(x.q)})}
       if(rows.length) await sb.from('questions').upsert(rows,{onConflict:'topic_id,l,norm',ignoreDuplicates:true});
       got=got.concat(await reserve(user.id,topic.id,s.l,need));
     }
-    if(got.length<15){await release(user.id,got);return res.status(503).json({error:'gen',detail:detail||'Model nie zwrócił poprawnych pytań'})}
-    res.json({questions:shuffle(got.slice(0,15))});
+    if(got.length<want){await release(user.id,got);return res.status(503).json({error:'gen',detail:detail||'Model nie zwrócił poprawnych pytań'})}
+    res.json({questions:shuffle(got.slice(0,want)),tid:topic.id});
   }catch(e){
     console.error('blad:',e.message);
     try{await release(user.id,got)}catch(_){}
