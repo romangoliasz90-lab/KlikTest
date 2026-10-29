@@ -41,20 +41,21 @@ export default async function handler(req,res){
     const s={k:String(b.k),p:String(b.p||'').slice(0,40),d:String(b.d||'').trim().toLowerCase().slice(0,80),l:Number(b.l)};
     if(!['4','5','6','7','8'].includes(s.k)||![0,1,2].includes(s.l)||!s.p||!s.d) return res.status(400).json({error:'dane'});
     let {all,pool}=await unseen(user.id,s);
+    const errs=[];
     for(let round=0;pool.length<15&&round<4;round++){
       const day=new Date().toISOString().slice(0,10);
       const {data:u}=await sb.from('usage').select('n').eq('user_id',user.id).eq('day',day).maybeSingle();
       if((u?.n||0)>=DAILY) return res.status(429).json({error:'limit'});
       await sb.from('usage').upsert({user_id:user.id,day,n:(u?.n||0)+1});
       const jobs=Math.ceil((15-pool.length+3)/5), avoid=all.slice(-40).map(x=>x.q);
-      const out=await Promise.all(Array.from({length:jobs},(_,i)=>gen(s,5,avoid,i+1).catch(e=>{console.error('gen error:',e.message);return []})));
+      const out=await Promise.all(Array.from({length:jobs},(_,i)=>gen(s,5,avoid,i+1).catch(e=>{console.error('gen error:',e.message);errs.push(e.message);return []})));
       const rows=out.flat().map(x=>({...s,q:x.q,o:x.o,c:x.c,e:x.e}));
       if(rows.length) await sb.from('questions').upsert(rows,{onConflict:'k,p,d,l,q',ignoreDuplicates:true});
       ({all,pool}=await unseen(user.id,s));
     }
-    if(pool.length<15) return res.status(503).json({error:'gen'});
+    if(pool.length<15) return res.status(503).json({error:'gen',detail:errs[0]||'Model nie zwrócił poprawnych pytań'});
     const pick=shuffle(pool).slice(0,15);
     await sb.from('seen').upsert(pick.map(x=>({user_id:user.id,question_id:x.id})));
     res.json({questions:pick});
-  }catch(e){res.status(500).json({error:'gen'})}
+  }catch(e){console.error('blad:',e.message);res.status(500).json({error:'gen',detail:e.message})}
 }
