@@ -96,9 +96,9 @@ function nav(){if(!S.user){document.getElementById("nav").innerHTML="";return}va
 document.getElementById("nav").innerHTML=n.map(function(x){return '<button aria-current="'+(v===x[0])+'" onclick="go(\''+x[0]+'\')">'+x[1]+'</button>'}).join("")}
 function go(v){S.view=v;S.err="";draw()}
 function draw(){if(!S.ready){document.getElementById("app").innerHTML='<div class="card">Ładowanie…</div>';return}if(!S.user&&S.view!=="remind")S.view="auth";nav();var f={home:home,test:test,res:res,prog:prog,set:setv,auth:auth,remind:remind,recover:recover}[S.view];document.getElementById("app").innerHTML=f();if(S.view==="home")loadSug()}
-function home(){var s=S.sel;var ps=Object.keys(CAT[s.k]||CAT["5"]);if(ps.indexOf(s.p)<0)s.p=ps[0];var ds=(CAT[s.k]||{})[s.p]||[];
+function home(){var s=S.sel;var ps=Object.keys(CAT[s.k]||CAT["5"]);if(ps.indexOf(s.p)<0){s.p=ps[0];s.d=""}var ds=(CAT[s.k]||{})[s.p]||[];
 return '<div class="card"><h2>Wybierz test</h2><label for="k">Klasa</label><select id="k" onchange="S.sel.k=this.value;draw()">'+[4,5,6,7,8].map(function(k){return '<option'+(String(k)===s.k?" selected":"")+'>'+k+'</option>'}).join("")+'</select>'
-+'<label for="p">Przedmiot</label><select id="p" onchange="S.sel.p=this.value;draw()">'+ps.map(function(p){return '<option'+(p===s.p?" selected":"")+'>'+p+'</option>'}).join("")+'</select>'
++'<label for="p">Przedmiot</label><select id="p" onchange="chP(this.value)">'+ps.map(function(p){return '<option'+(p===s.p?" selected":"")+'>'+p+'</option>'}).join("")+'</select>'
 +'<label for="d">Dział lub lektura</label><div class="sugw"><input id="d" autocomplete="off" onfocus="sgShow()" onblur="setTimeout(sgHide,150)" maxlength="80" placeholder="np. Ułamki zwykłe albo „Akademia pana Kleksa”" value="'+esc(s.d)+'" oninput="S.sel.d=this.value;sgShow()"><div id="sg" class="sug"></div></div><p class="mut" style="margin:6px 0 0">Wybierz z listy albo wpisz własny dział lub lekturę.</p>'
 +'<label>Poziom</label><div class="seg">'+LV.map(function(l,i){return '<button aria-pressed="'+(s.l===i)+'" onclick="S.sel.l='+i+';draw()">'+l+'</button>'}).join("")+'</div>'
 +'<p class="mut" style="margin:8px 0 0">15 pytań, jedna poprawna odpowiedź z czterech.</p>'
@@ -114,21 +114,27 @@ S.hist=(r.data||[]).map(function(x){return{k:x.k,p:x.p,d:x.d,l:x.l,sc:x.score,t:
 async function start(){var s=S.sel;st.set("sel",s);
 if(!s.d.trim()){S.err="Wpisz dział albo lektury, z których chcesz test.";draw();return}
 S.busy=true;S.err="";draw();
-try{var j=await api("/api/test",{k:s.k,p:s.p,d:s.d,l:s.l,n:5});
-if(!j.questions||j.questions.length<5)throw new Error("gen");
+try{var j=await api("/api/test",{k:s.k,p:s.p,d:s.d,l:s.l,n:3});
+if(!j.questions||j.questions.length<3)throw new Error("gen");
 var tok=S.tok=Date.now();
 S.q=j.questions;S.total=15;S.i=0;S.sc=0;S.picked=null;S.wait=false;S.failed=false;S.view="test";
 S.ctx={k:s.k,p:s.p,d:s.d,l:s.l,tid:j.tid,tok:tok};S.busy=false;draw();fill();return}
 catch(e){S.err=e.message==="temat"?"Ten temat nie pasuje do wybranego przedmiotu lub klasy. Wpisz inny temat szkolny.":(e.message==="limit"?"Na dziś to wszystkie nowe pytania. Wróć jutro!":"Nie udało się ułożyć testu. Spróbuj jeszcze raz.")+(e.detail?" Szczegóły: "+e.detail:"")}
 S.busy=false;draw()}
-async function fill(){var c=S.ctx,tries=0;
-while(S.tok===c.tok&&S.q.length<S.total&&tries<4){
-try{var j=await api("/api/test",{k:c.k,p:c.p,d:c.d,l:c.l,tid:c.tid,n:S.total-S.q.length});
-if(S.tok!==c.tok)return;
-(j.questions||[]).forEach(function(x){if(S.q.length<S.total&&!S.q.some(function(y){return y.id===x.id}))S.q.push(x)});
-if(S.wait&&S.i+1<S.q.length){S.wait=false;next()}}
-catch(e){tries++;if(e.message==="limit")break}}
+async function fill(){var c=S.ctx;
+function add(x){if(S.q.length<S.total&&!S.q.some(function(y){return y.id===x.id}))S.q.push(x)}
+async function run(n){var tries=0;
+while(S.tok===c.tok&&tries<3){
+try{var j=await api("/api/test",{k:c.k,p:c.p,d:c.d,l:c.l,tid:c.tid,n:n});
+if(S.tok!==c.tok)return;(j.questions||[]).forEach(add);
+if(S.wait&&S.i+1<S.q.length){S.wait=false;next()}return}
+catch(e){tries++}}}
+var tries=0;
+while(S.tok===c.tok&&S.q.length<S.total&&tries<3){
+var miss=S.total-S.q.length;var jobs=miss>=12?[6,6]:miss>6?[6,miss-6]:[miss];
+await Promise.all(jobs.filter(function(x){return x>0}).map(run));tries++}
 if(S.tok===c.tok&&S.q.length<S.total){S.failed=true;if(S.wait)draw()}}
+function chP(v){S.sel.p=v;S.sel.d="";draw()}
 function retry(){S.failed=false;draw();fill()}
 function report(){var q=S.q[S.i];S.reported=q.id;draw();api("/api/test",{action:"report",qid:q.id}).catch(function(){})}
 function reportBtn(q){return S.reported===q.id?'<p class="mut">Dziękujemy za zgłoszenie.</p>':'<button class="th" style="margin-top:10px" onclick="report()">Zgłoś błąd w pytaniu</button>'}
